@@ -1,196 +1,179 @@
 
-# 📘 **ContactBook API — README**
 
-A lightweight FastAPI application for creating, retrieving, updating, and managing contacts.  
-This project demonstrates proper API design, schema validation, modular routing, configuration management, and clean separation of concerns using Pydantic v2 and FastAPI.
+# **Contact Book API – Updated README**
 
----
-
-## 🚀 Overview
-
-The ContactBook API provides:
-
-- Creating new contacts  
-- Listing all contacts  
-- Filtering by `contact_type`  
-- Retrieving a single contact  
-- Updating contacts using PATCH  
-- Centralized configuration via `config.py`  
-- Full validation using Pydantic v2  
-- Clean, modular routers  
-- Strongly typed response models  
-
-Swagger UI is available at:
-
-```
-/docs
-```
+## **Overview**
+The Contact Book API is a lightweight FastAPI application that demonstrates core REST principles, Pydantic validation, and modular API design. It provides a complete set of CRUD‑style operations for managing contacts using an in‑memory data store. The project was developed as an assignment to showcase proper schema design, endpoint implementation, and clean application structure.
 
 ---
 
-## 🧱 Project Structure
+## **Assignment Requirements**
+This project satisfies all assignment requirements, including:
 
-```
-app/
-│
-├── main.py
-│
-├── config.py
-│
-├── routers/
-│   ├── create_contact_route.py
-│   ├── response_contact_route.py
-│   └── update_contact_route.py
-│
-└── schemas/
-    ├── contact_create.py
-    ├── contact_update.py
-    └── contact_response.py
-```
+- A **single router file** (`app/routers/contacts.py`) containing all endpoints  
+- Proper schema validation using Pydantic v2  
+- Enum‑based contact categories  
+- Correct response model structure  
+- Full CRUD‑style functionality (Create, List, Retrieve, Update)  
+- Clean FastAPI application setup in `main.py`  
 
 ---
 
-## ⚙️ Configuration (`config.py`)
-
-The ContactBook API uses a centralized configuration system powered by **Pydantic Settings**.
-
-### **Purpose**
-
-The `Config` class loads environment variables from a `.env` file and exposes them as strongly typed settings. This keeps configuration separate from business logic and makes the application easier to deploy across different environments.
-
-### **Design Summary**
-
-- **BaseSettings inheritance** automatically loads environment variables.  
-- **SettingsConfigDict** provides Pydantic v2‑compatible configuration.  
-- **Defaults** ensure the API runs even without a `.env` file.  
-- **Single `config` instance** ensures settings are loaded once and shared across the app.
+## **Contact Model**
+The API uses Pydantic schemas to define the structure of contact data.
 
 ### **Fields**
+| Field | Type | Description |
+|-------|-------|-------------|
+| first_name | string | Required, 1–50 chars |
+| last_name | string | Required, 1–50 chars |
+| email | string | Required, validated |
+| phone | string | Optional, 10–15 chars |
+| category | Enum | Required: `personal`, `work`, `family` |
+| id | int | Auto‑assigned |
+| created_at | string | ISO timestamp |
+| updated_at | string | ISO timestamp |
 
-- `app_name`: Name of the API  
-- `debug`: Boolean flag  
-- `database_url`: SQLite database path (placeholder for future DB integration)
+### **Enum Correction**
+The assignment requires the following valid categories:
 
----
+- `personal`
+- `work`
+- `family`
 
-## 📦 Schemas
-
-### **ContactCreate**  
-Used for POST `/contacts`.
-
-Validated fields:
-
-- **first_name** — required, 1–50 chars  
-- **last_name** — required, 1–50 chars  
-- **email** — required, validated with custom `field_validator`  
-- **phone** — optional, 10–15 chars  
-- **contact_type** — Enum (`personal`, `business`)
-
-### **ContactUpdate**  
-Used for PATCH `/contacts/{id}`.
-
-- All fields optional  
-- Same validation rules as ContactCreate  
-- Email validator only runs when email is provided  
-
-### **ContactResponse**  
-Returned by all endpoints.
-
-Includes:
-
-- `id: int`  
-- `first_name`  
-- `last_name`  
-- `email`  
-- `phone`  
-- `contact_type`  
-- `created_at: datetime`  
-- `updated_at: datetime`
+The API now uses these exact values.
 
 ---
 
-## 🔌 Routers
+## **Pydantic Schemas**
+Implemented schemas:
 
-### **POST /contacts**  
-Creates a new contact.
+- `ContactCreate` – required fields for creating a contact  
+- `ContactUpdate` – partial update schema using `exclude_unset=True`  
+- `ContactResponse` – inherits from `ContactCreate` and adds `id`, `created_at`, `updated_at`  
 
-- Validates using `ContactCreate`  
+This keeps the code DRY and ensures consistent field definitions across operations.
+
+---
+
+## **Router Structure**
+All endpoints are now consolidated into:
+
+```
+app/routers/contacts.py
+```
+
+This corrects the previous issue where multiple router files caused duplicated routes, multiple in‑memory databases, and unpredictable behavior.
+
+The router includes:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/contacts` | Create a new contact |
+| GET | `/contacts` | List all contacts (optional filtering) |
+| GET | `/contacts/{id}` | Retrieve a single contact |
+| PATCH | `/contacts/{id}` | Partially update a contact |
+
+---
+
+## **In‑Memory Database**
+The API uses:
+
+```python
+contacts_db: list[ContactResponse] = []
+next_id = 1
+```
+
+This keeps the project simple and focused on endpoint behavior rather than database configuration.
+
+---
+
+## **Endpoint Behavior**
+
+### **Create Contact — POST `/contacts`**
+- Validates all fields  
 - Prevents duplicate emails  
-- Assigns `id`, `created_at`, `updated_at`  
-- Returns `ContactResponse`
+- Assigns a unique ID  
+- Stores timestamps in ISO format  
 
-### **GET /contacts**  
-Lists all contacts.
-
-Optional filter:
+### **List Contacts — GET `/contacts`**
+Supports optional filtering:
 
 ```
-/contacts?contact_type=personal
+GET /contacts?category=work
 ```
 
-### **GET /contacts/{id}**  
-Retrieves a single contact by ID.
+**Fix applied:**  
+The unfiltered case now correctly returns `contacts_db` instead of causing a 500 error.
 
-Returns 404 if not found.
-
-### **PATCH /contacts/{id}**  
-Updates a contact using partial fields.
-
-- Validates using `ContactUpdate`  
-- Only updates fields provided  
-- Refreshes `updated_at`  
-- Returns updated `ContactResponse`
-
----
-
-## 🧪 Validation Behavior
-
-The API returns clear `422 Unprocessable Entity` errors for:
-
-- Invalid email format  
-- Names shorter than 1 or longer than 50 characters  
-- Phone numbers outside 10–15 characters  
-- Invalid enum values  
-- Incorrect field types  
-
-All validation is handled by Pydantic v2.
-
----
-
-## 🏁 Running the API
-
-Start the server:
-
-```
-uvicorn app.main:app --reload
-```
-
-Open Swagger UI:
-
-```
-http://localhost:8000/docs
-```
-
----
-
-## 🏷️ Root Endpoint
-
-```
-GET /
-```
-
+### **Retrieve Contact — GET `/contacts/{id}`**
 Returns:
 
-```json
-{"message": "Welcome to the Contact Book API!"}
-```
+- `200 OK` for valid IDs  
+- `404 Not Found` for missing contacts  
+
+### **Update Contact — PATCH `/contacts/{id}`**
+- Uses `model_dump(exclude_unset=True)`  
+- Only updates fields provided by the client  
+- Refreshes `updated_at` timestamp  
 
 ---
 
-## 📌 Next Steps
+## **Validation Rules**
+- **first_name / last_name:** 1–50 characters  
+- **email:** required, validated  
+- **phone:** optional, 10–15 characters  
+- **category:** must be one of `personal`, `work`, `family`  
+- **created_at / updated_at:** ISO‑formatted strings  
 
-- Add DELETE endpoint  
-- Add search endpoint  
-- Add pagination  
-- Convert to SQLAlchemy
+---
 
+## **Application Structure**
+```
+project/
+│
+├── app/
+│   ├── main.py
+│   ├── routers/
+│   │   └── contacts.py
+│   ├── schemas/
+│   │   ├── contact_create.py
+│   │   ├── contact_update.py
+│   │   └── contact_response.py
+│
+└── requirements.txt
+```
+
+### **main.py Updates**
+- Imports only the unified `contacts` router  
+- Registers it with `app.include_router()`  
+- Provides a simple root endpoint  
+- Contains no business logic  
+
+---
+
+## **Testing**
+All endpoints were tested using Swagger UI:
+
+- Create contact  
+- Retrieve contact  
+- List contacts  
+- Filter contacts  
+- Update contact  
+- Verify timestamps  
+- Verify enum validation  
+- Confirm duplicate email protection  
+- Confirm correct 404 behavior  
+
+---
+
+## **Key Fixes Implemented**
+- ✔ Unified router file  
+- ✔ Corrected enum values  
+- ✔ Standardized field names (`category`)  
+- ✔ Fixed GET return behavior  
+- ✔ Cleaned response model inheritance  
+- ✔ Removed duplicated router logic  
+- ✔ Ensured consistent timestamp formatting  
+
+---
