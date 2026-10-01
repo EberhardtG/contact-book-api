@@ -1,126 +1,130 @@
 
 
-# **Student API – Updated README**
+# **Contact Book API – Updated README**
 
 ## **Overview**
-The Student API is a full FastAPI application demonstrating modern REST design, SQLAlchemy 2.0 typed ORM models, Pydantic v2 validation, JWT‑based authentication, and modular router organization. It provides complete CRUD operations for student records along with secure registration, login, and protected endpoints. The project was developed as an assignment to showcase proper schema design, authentication flow, database modeling, and clean application structure.
+The Contact Book API is a lightweight FastAPI application that demonstrates core REST principles, Pydantic validation, and modular API design. It provides a complete set of CRUD‑style operations for managing contacts using an in‑memory data store. The project was developed as an assignment to showcase proper schema design, endpoint implementation, and clean application structure.
 
 ---
 
 ## **Assignment Requirements**
 This project satisfies all assignment requirements, including:
 
-- A **typed SQLAlchemy 2.0 model** for students  
-- Full CRUD functionality (Create, List, Retrieve, Update, Patch, Delete)  
+- A **single router file** (`app/routers/contacts.py`) containing all endpoints  
 - Proper schema validation using Pydantic v2  
-- A complete **JWT authentication system**  
-- Protected endpoints using FastAPI dependencies  
-- Modular routers (`/students` and `/auth`)  
-- Centralized exception handling  
+- Enum‑based contact categories  
+- Correct response model structure  
+- Full CRUD‑style functionality (Create, List, Retrieve, Update)  
 - Clean FastAPI application setup in `main.py`  
 
 ---
 
-## **Student Model**
-The API uses a SQLAlchemy 2.0 typed ORM model to represent student records.
+## **Contact Model**
+The API uses Pydantic schemas to define the structure of contact data.
 
 ### **Fields**
 | Field | Type | Description |
 |-------|-------|-------------|
-| id | int | Primary key |
-| username | string | Required, unique, max 75 chars |
-| email | string | Required, unique, max 100 chars |
-| hashed_password | string | Required, securely hashed |
-| major | string (optional) | Max 50 chars |
-| gpa | float (optional) | Must be between 0.0 and 4.0 |
+| first_name | string | Required, 1–50 chars |
+| last_name | string | Required, 1–50 chars |
+| email | string | Required, validated |
+| phone | string | Optional, 10–15 chars |
+| category | Enum | Required: `personal`, `work`, `family` |
+| id | int | Auto‑assigned |
+| created_at | string | ISO timestamp |
+| updated_at | string | ISO timestamp |
 
-### **Database Constraints**
-- `username` and `email` are **unique**  
-- `gpa` is validated using a SQL `CheckConstraint`  
-- All fields use SQLAlchemy’s typed `Mapped[]` annotations  
+### **Enum Correction**
+The assignment requires the following valid categories:
 
-This ensures strong typing, predictable behavior, and alignment with Pydantic v2 response models.
+- `personal`
+- `work`
+- `family`
 
----
-
-## **Authentication System**
-The API includes a complete authentication flow using JWT tokens.
-
-### **Endpoints**
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/register` | Create a new user account |
-| POST | `/auth/token` | Log in and receive a JWT |
-| GET | `/auth/me` | Retrieve the current authenticated user |
-| GET | `/auth/dashboard` | Example protected endpoint |
-
-### **Password Hashing**
-The API uses:
-
-```
-pbkdf2_sha256
-```
-
-instead of bcrypt due to Windows runtime instability with bcrypt’s native C extensions.  
-This ensures secure, stable hashing across all environments.
-
-### **JWT Tokens**
-- Signed using HS256  
-- Include an expiration timestamp  
-- Store the user ID in the `sub` claim  
-- Used via the `Authorization: Bearer <token>` header  
-
-Protected endpoints rely on `get_current_user` to validate and decode tokens.
+The API now uses these exact values.
 
 ---
 
 ## **Pydantic Schemas**
-Implemented schemas include:
+Implemented schemas:
 
-- `StudentCreate` – required fields for creating a student  
-- `StudentUpdate` – full replacement updates  
-- `StudentPatch` – partial updates using `exclude_unset=True`  
-- `StudentResponse` – safe output model using `from_attributes=True`  
-- `UserCreate`, `LoginRequest`, `UserResponse`, `TokenResponse` for auth  
+- `ContactCreate` – required fields for creating a contact  
+- `ContactUpdate` – partial update schema using `exclude_unset=True`  
+- `ContactResponse` – inherits from `ContactCreate` and adds `id`, `created_at`, `updated_at`  
 
-This ensures strict validation and clean separation between input and output models.
+This keeps the code DRY and ensures consistent field definitions across operations.
 
 ---
 
 ## **Router Structure**
-All endpoints are organized into two routers:
+All endpoints are now consolidated into:
 
 ```
-app/routers/students.py
-app/routers/auth.py
+app/routers/contacts.py
 ```
 
-### **Students Router**
+This corrects the previous issue where multiple router files caused duplicated routes, multiple in‑memory databases, and unpredictable behavior.
+
+The router includes:
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/students` | Create student |
-| GET | `/students` | List students (optional filters) |
-| GET | `/students/{id}` | Retrieve student |
-| PUT | `/students/{id}` | Full update |
-| PATCH | `/students/{id}` | Partial update |
-| DELETE | `/students/{id}` | Delete student |
-
-### **Auth Router**
-Handles registration, login, and protected routes.
-
-This modular structure keeps authentication concerns separate from CRUD logic.
+| POST | `/contacts` | Create a new contact |
+| GET | `/contacts` | List all contacts (optional filtering) |
+| GET | `/contacts/{id}` | Retrieve a single contact |
+| PATCH | `/contacts/{id}` | Partially update a contact |
 
 ---
 
-## **Custom Exceptions**
-The API uses centralized custom exceptions:
+## **In‑Memory Database**
+The API uses:
 
-- `NotFoundError` – missing resources  
-- `DuplicateError` – unique constraint violations  
-- `AppValidationError` – business‑rule validation  
-- `AppException` – base class  
+```python
+contacts_db: list[ContactResponse] = []
+next_id = 1
+```
 
-`main.py` registers exception handlers to ensure consistent JSON error responses.
+This keeps the project simple and focused on endpoint behavior rather than database configuration.
+
+---
+
+## **Endpoint Behavior**
+
+### **Create Contact — POST `/contacts`**
+- Validates all fields  
+- Prevents duplicate emails  
+- Assigns a unique ID  
+- Stores timestamps in ISO format  
+
+### **List Contacts — GET `/contacts`**
+Supports optional filtering:
+
+```
+GET /contacts?category=work
+```
+
+**Fix applied:**  
+The unfiltered case now correctly returns `contacts_db` instead of causing a 500 error.
+
+### **Retrieve Contact — GET `/contacts/{id}`**
+Returns:
+
+- `200 OK` for valid IDs  
+- `404 Not Found` for missing contacts  
+
+### **Update Contact — PATCH `/contacts/{id}`**
+- Uses `model_dump(exclude_unset=True)`  
+- Only updates fields provided by the client  
+- Refreshes `updated_at` timestamp  
+
+---
+
+## **Validation Rules**
+- **first_name / last_name:** 1–50 characters  
+- **email:** required, validated  
+- **phone:** optional, 10–15 characters  
+- **category:** must be one of `personal`, `work`, `family`  
+- **created_at / updated_at:** ISO‑formatted strings  
 
 ---
 
@@ -130,64 +134,46 @@ project/
 │
 ├── app/
 │   ├── main.py
-│   ├── database.py
-│   ├── models/
-│   │   └── student.py
 │   ├── routers/
-│   │   ├── students.py
-│   │   └── auth.py
+│   │   └── contacts.py
 │   ├── schemas/
-│   │   ├── studentcreate.py
-│   │   ├── studentupdate.py
-│   │   ├── studentpatch.py
-│   │   ├── studentresponse.py
-│   │   ├── auth.py
-│   ├── exceptions.py
-│   └── auth.py
+│   │   ├── contact_create.py
+│   │   ├── contact_update.py
+│   │   └── contact_response.py
 │
 └── requirements.txt
 ```
 
-### **main.py Responsibilities**
-- Creates database tables  
-- Registers routers  
-- Registers exception handlers  
-- Configures FastAPI metadata  
+### **main.py Updates**
+- Imports only the unified `contacts` router  
+- Registers it with `app.include_router()`  
+- Provides a simple root endpoint  
+- Contains no business logic  
 
 ---
 
 ## **Testing**
 All endpoints were tested using Swagger UI:
 
-### **Authentication**
-- Register user  
-- Log in and receive JWT  
-- Authorize using Swagger’s lock icon  
-- Access protected endpoints  
-- Confirm 401 behavior without a token  
-
-### **CRUD**
-- Create student  
-- Retrieve student  
-- List students with filters  
-- Update and patch student  
-- Validate GPA range  
+- Create contact  
+- Retrieve contact  
+- List contacts  
+- Filter contacts  
+- Update contact  
+- Verify timestamps  
+- Verify enum validation  
 - Confirm duplicate email protection  
 - Confirm correct 404 behavior  
-- Delete student  
 
 ---
 
-## **Key Features Implemented**
-- ✔ Typed SQLAlchemy 2.0 model  
-- ✔ Secure password hashing with pbkdf2_sha256  
-- ✔ JWT authentication with protected routes  
-- ✔ Full CRUD functionality  
-- ✔ Pydantic v2 schemas with from_attributes=True  
-- ✔ Centralized custom exceptions  
-- ✔ Clean router organization  
-- ✔ Consistent error responses  
-- ✔ Complete Swagger documentation  
-
+## **Key Fixes Implemented**
+- ✔ Unified router file  
+- ✔ Corrected enum values  
+- ✔ Standardized field names (`category`)  
+- ✔ Fixed GET return behavior  
+- ✔ Cleaned response model inheritance  
+- ✔ Removed duplicated router logic  
+- ✔ Ensured consistent timestamp formatting  
 
 ---
